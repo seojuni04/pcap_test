@@ -60,12 +60,25 @@ int main(int argc, char *argv[])
             continue;
         }
         sig = 1;
+
         /* Print Ethernet Header */
         printf("=================================================\n");
         printf("================ Ethernet Header ================\n");
         printf("=================================================\n");
         printf("Destination Mac Address: %02x:%02x:%02x:%02x:%02x:%02x \n",packet[0],packet[1],packet[2],packet[3],packet[4],packet[5]);
         printf("Source Mac Address: %02x:%02x:%02x:%02x:%02x:%02x \n",packet[6],packet[7],packet[8],packet[9],packet[10],packet[11]);
+
+        /* Print IP Header */
+        if(packet[12]==0x08 && packet[13]==0x00)
+        {
+            printf("=================================================\n");
+            printf("=================== IP Header ===================\n");
+            printf("=================================================\n");
+            printf("Source IP Address: %d.%d.%d.%d \n",packet[26], packet[27], packet[28], packet[29]);
+            printf("Destination IP Address: %d.%d.%d.%d \n", packet[30], packet[31], packet[32], packet[33]);
+        }
+
+        printf("\n");
     }
 
     /* close the session */
