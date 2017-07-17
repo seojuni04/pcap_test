@@ -78,6 +78,14 @@ int main(int argc, char *argv[])
             printf("Destination IP Address: %d.%d.%d.%d \n", packet[30], packet[31], packet[32], packet[33]);
         }
 
+        /* Print TCP Header */
+        printf("=================================================\n");
+        printf("================== TCP Header ===================\n");
+        printf("=================================================\n");
+        printf("Source Port: %d\n", packet[34]*256+packet[35]);
+        printf("Destination Port: %d\n", packet[36]*256+packet[37]);
+
+        printf("Data: %s\n",packet+54);
         printf("\n");
     }
 
