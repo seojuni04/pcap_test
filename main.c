@@ -1,5 +1,10 @@
 #include <pcap.h>
 #include <stdio.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <net/ethernet.h>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
 
 int main(int argc, char *argv[])
 {
@@ -12,8 +17,13 @@ int main(int argc, char *argv[])
     bpf_u_int32 net;      /* Our IP */
     struct pcap_pkthdr header;   /* The header that pcap gives us */
     const u_char *packet;      /* The actual packet */
+    struct ether_header *eptr;
+    struct ip *iph;
+    struct tcphdr *tcph;
+    char buf[20];
     int pcap_mod;
     int sig = 0;
+    int data_l = 0;
 
     /* Define the device */
     dev = pcap_lookupdev(errbuf);
@@ -61,6 +71,8 @@ int main(int argc, char *argv[])
         }
         sig = 1;
 
+        eptr = (struct ether_header *) packet;
+
         /* Print Ethernet Header */
         printf("=================================================\n");
         printf("================ Ethernet Header ================\n");
@@ -69,24 +81,50 @@ int main(int argc, char *argv[])
         printf("Source Mac Address: %02x:%02x:%02x:%02x:%02x:%02x \n",packet[6],packet[7],packet[8],packet[9],packet[10],packet[11]);
 
         /* Print IP Header */
-        if(packet[12]==0x08 && packet[13]==0x00)
+        if (ntohs (eptr->ether_type) == ETHERTYPE_IP)
         {
+            packet += sizeof(struct ether_header);
+            iph = (struct ip *) packet;
             printf("=================================================\n");
             printf("=================== IP Header ===================\n");
             printf("=================================================\n");
-            printf("Source IP Address: %d.%d.%d.%d \n",packet[26], packet[27], packet[28], packet[29]);
-            printf("Destination IP Address: %d.%d.%d.%d \n", packet[30], packet[31], packet[32], packet[33]);
+            printf("Source IP Address: %s\n", inet_ntop(AF_INET, &iph->ip_src, buf, sizeof(buf)));
+            printf("Destination IP Address: %s\n", inet_ntop(AF_INET, &iph->ip_dst, buf, sizeof(buf)));
         }
 
         /* Print TCP Header */
-        printf("=================================================\n");
-        printf("================== TCP Header ===================\n");
-        printf("=================================================\n");
-        printf("Source Port: %d\n", packet[34]*256+packet[35]);
-        printf("Destination Port: %d\n", packet[36]*256+packet[37]);
+        if(iph->ip_p == IPPROTO_TCP)
+        {
+            packet += iph->ip_hl * 4;
+            tcph = (struct tcp *) packet;
+            printf("=================================================\n");
+            printf("================== TCP Header ===================\n");
+            printf("=================================================\n");
+            printf("Source Port: %d\n", ntohs(tcph->source));
+            printf("Destination Port: %d\n", ntohs(tcph->dest));
+        }
 
-        printf("Data: %s\n",packet+54);
-        printf("\n");
+        /* Print Data */
+        packet += tcph->th_off * 4;
+        data_l = ntohs(iph->ip_len) - (iph->ip_hl*4) - (tcph->th_off*4);
+        if(0 < data_l)
+        {
+            printf("=================================================\n");
+            printf("===================== Data ======================\n");
+            printf("=================================================\n");
+            for(int i=0; i < data_l; i++)
+            {
+                printf("%c", *(packet+i));
+            }
+            printf("\n");
+        }
+        else
+        {
+            printf("=================================================\n");
+            printf("===================== Data ======================\n");
+            printf("=================================================\n");
+            printf("no Data!\n\n");
+        }
     }
 
     /* close the session */
